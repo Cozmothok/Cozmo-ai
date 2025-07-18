@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Message, Role } from './types';
 import { chat, generateImage, searchWeb } from './services/geminiService';
-import { getGroqChatCompletion } from './services/groqService';
 import { ChatMessage } from './components/Message';
 import { MessageInput } from './components/MessageInput';
 import { Welcome } from './components/Welcome';
@@ -34,10 +33,7 @@ const base64ToGenerativePart = (base64Data: string): Part => {
 
 
 const App: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>(() => {
-    const savedMessages = localStorage.getItem('cozmoChatHistory');
-    return savedMessages ? JSON.parse(savedMessages) : [];
-  });
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(true);
   const [isVisionMode, setIsVisionMode] = useState<boolean>(false);
@@ -51,10 +47,6 @@ const App: React.FC = () => {
         top: chatContainerRef.current.scrollHeight,
         behavior: 'smooth',
     });
-  }, [messages]);
-
-  useEffect(() => {
-    localStorage.setItem('cozmoChatHistory', JSON.stringify(messages));
   }, [messages]);
 
   // --- Client-side Tool Implementations ---
@@ -140,30 +132,8 @@ const App: React.FC = () => {
             return; // Exit function after performing search
         }
         
-        // Prepare history for the model
-        const history = messages.map(msg => {
-            const parts: Part[] = [];
-            if (msg.content) {
-                parts.push({ text: msg.content as string });
-            }
-            if (msg.toolCalls && msg.toolCalls.length > 0) {
-                msg.toolCalls.forEach((call: any) => {
-                    parts.push({ functionCall: call });
-                });
-            }
-            if (msg.toolResults && msg.toolResults.length > 0) {
-                msg.toolResults.forEach((result: any) => {
-                    parts.push({ functionResponse: { name: result.name, response: result.output } });
-                });
-            }
-            return {
-                role: msg.role === Role.USER ? 'user' : 'model',
-                parts: parts
-            };
-        });
-
         // --- Start of multi-turn function calling loop ---
-        let response = await chat.sendMessage({ history: history, message: messageParts, signal: currentAbortController.signal });
+        let response = await chat.sendMessage({ message: messageParts, signal: currentAbortController.signal });
 
         while(true) {
             const toolCalls = response.candidates?.[0]?.content?.parts.filter(part => !!part.functionCall);
@@ -286,57 +256,45 @@ const App: React.FC = () => {
   };
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/" element={
-          <div className="flex flex-col md:flex-row h-screen w-full bg-[#0a0f1f] text-gray-200 font-rajdhani">
-              <div className="flex flex-col p-2 space-y-2 bg-black/20 items-center justify-center md:p-4 md:space-y-4 md:w-1/3 md:max-w-sm md:space-y-6 border-r-2 border-cyan-400/20 shadow-2xl shadow-cyan-900/50">
-                  {isVisionMode ? <VisionSystem ref={visionRef} /> : <AIAvatar isSpeaking={isSpeaking} />}
-                  <h2 className="font-orbitron text-xl md:text-3xl font-bold text-cyan-300 tracking-widest" style={{ textShadow: '0 0 8px rgba(0, 255, 255, 0.7)'}}>
-                    C.O.Z.M.O AI
-                  </h2>
-                  <div className="flex items-center gap-2">
-                      <button 
-                          onClick={toggleAudio}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-cyan-400/10 border border-cyan-400/30 hover:bg-cyan-400/20 transition-colors text-cyan-300"
-                      >
-                          {isAudioEnabled ? <SpeakerWaveIcon className="h-5 w-5" /> : <SpeakerXMarkIcon className="h-5 w-5 text-red-500/70" />}
-                          <span className="text-xs font-medium uppercase tracking-wider">{isAudioEnabled ? "Audio On" : "Audio Off"}</span>
-                      </button>
-                      <button 
-                          onClick={() => setIsVisionMode(prev => !prev)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${isVisionMode ? 'bg-cyan-400/20 border-cyan-400/50 text-cyan-200' : 'bg-cyan-400/10 border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/20'}`}
-                      >
-                          <EyeIcon className="h-5 w-5" />
-                          <span className="text-xs font-medium uppercase tracking-wider">{isVisionMode ? "Vision On" : "Vision Off"}</span>
-                      </button>
-                  </div>
-                  <div className="flex items-center gap-2 mt-4">
-                    <Link to="/login" className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">Login</Link>
-                    <Link to="/register" className="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold">Register</Link>
-                  </div>
-              </div>
+    <div className="flex flex-col md:flex-row h-screen w-full bg-[#0a0f1f] text-gray-200 font-rajdhani">
+        <div className="flex flex-col p-4 bg-black/20 items-center justify-center space-y-4 md:w-1/3 md:max-w-sm md:space-y-6 border-r-2 border-cyan-400/20 shadow-2xl shadow-cyan-900/50">
+            {isVisionMode ? <VisionSystem ref={visionRef} /> : <AIAvatar isSpeaking={isSpeaking} />}
+            <h2 className="font-orbitron text-2xl md:text-3xl font-bold text-cyan-300 tracking-widest" style={{ textShadow: '0 0 8px rgba(0, 255, 255, 0.7)'}}>
+              C.O.Z.M.O AI
+            </h2>
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={toggleAudio}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-cyan-400/10 border border-cyan-400/30 hover:bg-cyan-400/20 transition-colors text-cyan-300"
+                >
+                    {isAudioEnabled ? <SpeakerWaveIcon className="h-5 w-5" /> : <SpeakerXMarkIcon className="h-5 w-5 text-red-500/70" />}
+                    <span className="text-xs font-medium uppercase tracking-wider">{isAudioEnabled ? "Audio On" : "Audio Off"}</span>
+                </button>
+                <button 
+                    onClick={() => setIsVisionMode(prev => !prev)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${isVisionMode ? 'bg-cyan-400/20 border-cyan-400/50 text-cyan-200' : 'bg-cyan-400/10 border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/20'}`}
+                >
+                    <EyeIcon className="h-5 w-5" />
+                    <span className="text-xs font-medium uppercase tracking-wider">{isVisionMode ? "Vision On" : "Vision Off"}</span>
+                </button>
+            </div>
+        </div>
 
-              <div className="flex flex-1 flex-col min-h-0 bg-black/10">
-                  <div ref={chatContainerRef} className="flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#06b6d4_transparent]">
-                      {messages.length === 0 ? <Welcome onExampleClick={handleWelcomeClick} /> : <div>{messages.map((msg) => <ChatMessage key={msg.id} message={msg} />)}</div>}
-                  </div>
-                  
-                  <div className="w-full bg-[#0a0f1f]/80 pt-2 pb-4 backdrop-blur-sm border-t border-cyan-400/20">
-                      <div className="mx-auto max-w-4xl px-2 md:px-4">
-                          <MessageInput onSendMessage={masterSendHandler} isLoading={isLoading} onVoiceInputStart={handleVoiceInputStart} />
-                          <p className="text-center text-xs text-cyan-400/50 mt-2 px-2 font-rajdhani">
-                              C.O.Z.M.O AI v1.0. Flash Module Active. System status: Nominal.
-                          </p>
-                      </div>
-                  </div>
-              </div>
-          </div>
-        } />
-      </Routes>
-    </Router>
+        <div className="flex flex-1 flex-col min-h-0 bg-black/10">
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#06b6d4_transparent]">
+                {messages.length === 0 ? <Welcome onExampleClick={handleWelcomeClick} /> : <div>{messages.map((msg) => <ChatMessage key={msg.id} message={msg} />)}</div>}
+            </div>
+            
+            <div className="w-full bg-[#0a0f1f]/80 pt-4 pb-6 backdrop-blur-sm border-t border-cyan-400/20">
+                <div className="mx-auto max-w-4xl px-4">
+                    <MessageInput onSendMessage={masterSendHandler} isLoading={isLoading} onVoiceInputStart={handleVoiceInputStart} />
+                    <p className="text-center text-xs text-cyan-400/50 mt-3 px-4 font-rajdhani">
+                        C.O.Z.M.O AI v1.0. Flash Module Active. System status: Nominal.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
   );
 };
 
