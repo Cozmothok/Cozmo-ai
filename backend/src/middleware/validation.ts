@@ -1,5 +1,4 @@
-import expressValidator from 'express-validator';
-const { body, validationResult } = expressValidator;
+import { body, validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
 
 export const validateRegistration = [
