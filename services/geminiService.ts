@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Chat, Tool, Type } from "@google/genai";
 
-const API_KEY = import.meta.env.VITE_COZMO_API_KEY;
+const API_KEY = import.meta.env.GEMINI_API_KEY;
 
 if (!API_KEY) {
   console.error("API_KEY is not set in environment variables.");
