@@ -1,0 +1,8 @@
+{
+  "name": "Gemini AI Chatbot",
+  "description": "A sleek and responsive chatbot application powered by the Google Gemini API. Engage in intelligent, real-time conversations with an advanced AI.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
