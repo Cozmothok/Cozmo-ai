@@ -19,7 +19,7 @@ services:
     name: cozmo-ai-frontend
     runtime: static
     buildCommand: npm install && npm run build
-    publishPath: dist
+    staticPublishPath: dist # Corrected from publishPath
     envVars:
       - key: VITE_API_URL
         value: https://cozmo-ai-backend.onrender.com # This will be updated after backend deployment
